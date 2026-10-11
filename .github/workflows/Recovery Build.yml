@@ -38,8 +38,10 @@ jobs:
         run: |
           cd workspace
           source build/envsetup.sh
-          lunch omni_umi-eng || lunch twrp_umi-eng
+          export ALLOW_MISSING_DEPENDENCIES=true
+          lunch twrp_umi-userdebug || lunch omni_umi-userdebug
           make recoveryimage -j$(nproc)
+
 
       - name: Upload Recovery Artifact
         uses: actions/upload-artifact@v4
