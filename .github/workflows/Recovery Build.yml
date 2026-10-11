@@ -166,4 +166,13 @@ jobs:
           Device: ${{ github.event.inputs.DEVICE_NAME }}
           Target: ${{ github.event.inputs.BUILD_TARGET }}.img
       env:
+  MANIFEST_URL: 'https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp'
+  MANIFEST_BRANCH: 'twrp-12.1'
+  DEVICE_TREE_URL: 'https://github.com/twrpdtgen/android_device_xiaomi_umi'
+  DEVICE_TREE_BRANCH: 'main'
+  DEVICE_PATH: 'device/xiaomi/umi'
+  DEVICE_NAME: 'umi'
+  MAKEFILE_NAME: 'omni_umi'
+  BUILD_TARGET: 'recovery'
+  
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
