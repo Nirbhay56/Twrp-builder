@@ -5,10 +5,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Build Environment
         run: |
@@ -42,7 +42,7 @@ jobs:
           make recoveryimage -j$(nproc)
 
       - name: Upload Recovery Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: Xiaomi_Mi10_TWRP
           path: workspace/out/target/product/umi/recovery.img
