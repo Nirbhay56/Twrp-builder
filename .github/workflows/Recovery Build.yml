@@ -1,50 +1,59 @@
-name: Recovery Build
+name: Patch Prebuilt Recovery Image
 
 on:
   workflow_dispatch:
+    inputs:
+      recovery_url:
+        description: 'Direct Download Link to Pablo Gaunis OrangeFox / Recovery Image'
+        required: true
+        default: 'https://github.com/path/to/pablo_recovery.img'
 
 jobs:
-  build:
+  patch_recovery:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Build Environment
+      - name: Install Android Image Tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y ccache bison build-essential curl flex g++-multilib gcc-multilib git gnupg gperf lib32ncurses5-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc zip zlib1g-dev
+          sudo apt-get install -y abootimg cpio gzip wget android-sdk-libsparse-utils
 
-      - name: Install Repo Tool
-        run: |
-          mkdir -p ~/bin
-          curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
-          chmod a+x ~/bin/repo
-          echo "$HOME/bin" >> $GITHUB_PATH
-
-      - name: Initialize and Sync TWRP Source
+      - name: Download Prebuilt Recovery Image
         run: |
           mkdir workspace
           cd workspace
-          repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp -b twrp-12.1
-          repo sync -c --no-clone-bundle --no-tags -j$(nproc)
+          wget -O pablo_recovery.img "${{ github.event.inputs.recovery_url }}"
 
-      - name: Clone Device Tree
+      - name: Unpack, Patch Android 17 Keymaster & Repack
         run: |
           cd workspace
-          git clone https://github.com/yarpiin/twrp_device_xiaomi_umi device/xiaomi/umi -b android-12.1
+          mkdir unpacked && cd unpacked
+          abootimg -x ../pablo_recovery.img
+          mkdir ramdisk && cd ramdisk
+          gzip -d -c ../initrd.img | cpio -i
+          
+          # Patch crashing keymaster & crypto HAL flags causing the Android 17 splash freeze
+          if [ -f prop.default ]; then
+            sed -i 's/ro.crypto.state=encrypted/ro.crypto.state=unencrypted/g' prop.default
+            sed -i 's/ro.crypto.volume.metadata.method=1/ro.crypto.volume.metadata.method=0/g' prop.default
+            echo "ro.crypto.state=unencrypted" >> prop.default
+          fi
+          
+          if [ -f default.prop ]; then
+            sed -i 's/ro.crypto.state=encrypted/ro.crypto.state=unencrypted/g' default.prop
+            echo "ro.crypto.state=unencrypted" >> default.prop
+          fi
 
-      - name: Build TWRP Recovery
-        run: |
-          cd workspace
-          export ALLOW_MISSING_DEPENDENCIES=true
-          source build/envsetup.sh
-          lunch twrp_umi-eng
-          make recoveryimage -j$(nproc)
+          # Repack patched ramdisk
+          find . | cpio -o -H newc | gzip > ../new_initrd.img
+          cd ..
+          abootimg -u ../pablo_recovery.img -r new_initrd.img
 
-      - name: Upload Recovery Artifact
+      - name: Upload Patched Recovery Image
         uses: actions/upload-artifact@v4
         with:
-          name: Xiaomi_Mi10_TWRP
-          path: workspace/out/target/product/umi/recovery.img
+          name: Patched_Pablo_OrangeFox_A17
+          path: workspace/pablo_recovery.img
           
