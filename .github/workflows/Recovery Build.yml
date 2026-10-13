@@ -1,12 +1,7 @@
-name: Patch Prebuilt Recovery Image
+name: Patch Pablo OrangeFox Recovery
 
 on:
   workflow_dispatch:
-    inputs:
-      recovery_url:
-        description: 'Direct Download Link to Pablo Gaunis OrangeFox / Recovery Image'
-        required: true
-        default: 'https://github.com/path/to/pablo_recovery.img'
 
 jobs:
   patch_recovery:
@@ -20,11 +15,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y abootimg cpio gzip wget android-sdk-libsparse-utils
 
-      - name: Download Prebuilt Recovery Image
+      - name: Download Pablo Gaunis Recovery Image
         run: |
           mkdir workspace
           cd workspace
-          wget -O pablo_recovery.img "${{ github.event.inputs.recovery_url }}"
+          # Downloads Pablo Gaunis Mi10 RisingOS Recovery from SourceForge
+          wget -O pablo_recovery.img "https://downloads.sourceforge.net/project/mi10-umi-risingos/Recovery/OrangeFox-umi-A17.img" || \
+          wget -O pablo_recovery.img "https://downloads.sourceforge.net/project/recovery-for-xiaomi-devices/umi/OrangeFox-R11.1-umi.img"
 
       - name: Unpack, Patch Android 17 Keymaster & Repack
         run: |
@@ -34,7 +31,7 @@ jobs:
           mkdir ramdisk && cd ramdisk
           gzip -d -c ../initrd.img | cpio -i
           
-          # Patch crashing keymaster & crypto HAL flags causing the Android 17 splash freeze
+          # Patch crashing keymaster & crypto HAL flags causing the splash freeze on Android 17
           if [ -f prop.default ]; then
             sed -i 's/ro.crypto.state=encrypted/ro.crypto.state=unencrypted/g' prop.default
             sed -i 's/ro.crypto.volume.metadata.method=1/ro.crypto.volume.metadata.method=0/g' prop.default
@@ -46,7 +43,7 @@ jobs:
             echo "ro.crypto.state=unencrypted" >> default.prop
           fi
 
-          # Repack patched ramdisk
+          # Repack patched ramdisk into bootable image
           find . | cpio -o -H newc | gzip > ../new_initrd.img
           cd ..
           abootimg -u ../pablo_recovery.img -r new_initrd.img
